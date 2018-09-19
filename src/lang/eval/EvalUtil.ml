@@ -19,8 +19,7 @@
 open Syntax
 open Core
 open MonadUtil
-open EvalMonad
-open EvalMonad.Let_syntax
+open Result.Let_syntax
 open Stdint
 open ContractUtil
 open TypeUtil
@@ -34,6 +33,9 @@ module EvalSyntax = ScillaSyntax (SR) (ER)
 module EvalTypeUtilities = TypeUtilities (SR) (ER)
 module EvalBuiltIns = ScillaBuiltIns (SR) (ER) 
 module EvalGas = ScillaGas (SR) (ER)
+
+
+
 
 open EvalSyntax
     
@@ -117,16 +119,16 @@ let rec subst_type_in_expr tvar tp (erep : expr_annot) =
 (* Return a builtin_op wrapped in EvalMonad *)
 let builtin_executor i arg_tps arg_lits =
   let%bind (_, ret_typ, op) =
-    fromR @@ EvalBuiltIns.BuiltInDictionary.find_builtin_op i arg_tps in
-  let%bind cost = fromR @@ EvalGas.builtin_cost i arg_lits in
+    EvalBuiltIns.BuiltInDictionary.find_builtin_op i arg_tps in
+  let%bind cost = EvalGas.builtin_cost i arg_lits in
   let res () = op arg_lits ret_typ in
-  checkwrap_opR res cost
+  GasTracker.wrap_op res cost
 
 (* Add a check that the just evaluated statement was in our gas limit. *)
 let stmt_gas_wrap scon =
-  let%bind cost = fromR @@ EvalGas.stmt_cost scon in
+  let%bind cost = EvalGas.stmt_cost scon in
   let dummy () = pure () in (* the operation is already executed unfortunately *)
-    checkwrap_op dummy cost "Ran out of gas evaluating statement"
+    GasTracker.wrap_op dummy cost
 
 (*****************************************************)
 (* Update-only execution environment for expressions *)

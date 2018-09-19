@@ -22,7 +22,7 @@ open Syntax
 open ParserUtil
 open RunnerUtil
 open GlobalConfig
-
+open Gas
 
 module ParsedSyntax = ParserUtil.ParsedSyntax
 module PSRep = ParserRep
@@ -42,6 +42,7 @@ let () =
     exit 1)
   else
   let filename = Sys.argv.(1) in
+  GasTracker.set_limit gas_limit;
   match FrontEndParser.parse_file ScillaParser.exps filename with
   | Some [e] ->
       (* Since this is not a contract, we have no in-contract lib defined. *)
@@ -56,14 +57,13 @@ let () =
       let elibs = import_all_libs lib_dirs in
       let envres = Eval.init_libraries (Some clib) elibs in
       let env, gas_remaining = 
-        (match envres gas_limit with
-        | Ok (env', gas_remaining) -> env', gas_remaining
-        | Error (err, _) ->
+        (match envres with
+        | Ok env' -> env', GasTracker.get_available()
+        | Error err ->
           printf "Failed to initialize stdlib. Evaluation halted: %s\n" err;
           exit 1;) in
       let lib_fnames = List.map (fun (name, _) -> name) env in
-      let res' = Eval.exp_eval_wrapper e env in
-      let res = res' gas_remaining in
+      let res = Eval.exp_eval_wrapper e env in
       (match res with
       | Ok _ ->
           printf "%s\n" (Eval.pp_result res lib_fnames)

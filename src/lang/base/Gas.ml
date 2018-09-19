@@ -24,6 +24,32 @@ open TypeUtil
 open PrimTypes
 open Schnorr
 
+module GasTracker = struct
+
+exception GasError of string
+
+(* TODO: How to hide this from outside access. *)
+let gas_available = ref (-1)
+
+(* Raises exception if lim is negative. *)
+let set_limit lim =
+  if lim < 0 then raise (GasError "Invalid gas limit") else
+  gas_available := lim
+
+let get_available () =
+  !gas_available
+
+let wrap_op thunk cost =
+  (* Use "g" gas and return available gas if non-zero. None if out of gas. *)
+  if !gas_available > cost
+  then
+    (gas_available := (!gas_available - cost);
+    thunk())
+  else
+    fail @@ "Out of gas\n"
+
+end
+
 module ScillaGas
     (SR : Rep)
     (ER : Rep) = struct

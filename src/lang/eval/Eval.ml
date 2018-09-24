@@ -25,6 +25,7 @@ open Result.Let_syntax
 open PatternMatching
 open Stdint
 open ContractUtil
+open PrettyPrinters
 
 open EvalTypeUtilities
 open EvalSyntax

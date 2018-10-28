@@ -1,5 +1,5 @@
 {
-  "gas_remaining": "7033",
+  "gas_remaining": "6866",
   "message": null,
   "states": [
     { "vname": "_balance", "type": "Uint128", "value": "0" },
@@ -35,5 +35,22 @@
       ]
     }
   ],
-  "events": []
+  "events": [
+    {
+      "_eventname": "Transfer Successful",
+      "params": [
+        {
+          "vname": "from",
+          "type": "ByStr20",
+          "value": "0x1234567890123456789012345678901234567890"
+        },
+        {
+          "vname": "to",
+          "type": "ByStr20",
+          "value": "0x78345678901234567890123456789012345678cd"
+        },
+        { "vname": "num", "type": "Uint128", "value": "580" }
+      ]
+    }
+  ]
 }

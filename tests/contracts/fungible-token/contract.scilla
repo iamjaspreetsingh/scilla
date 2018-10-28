@@ -14,6 +14,33 @@ let one_msg =
 
 let no_msg = Nil {Message}
 
+let make_transfer_success_event =
+    fun (withdrawnFrom: ByStr20) =>
+    fun (depositedTo: ByStr20) =>
+    fun (numTokens : Uint128) =>
+        {_eventname: "Transfer Successful"; 
+        from: withdrawnFrom; 
+        to: depositedTo;
+        num: numTokens}
+
+let make_approve_success_event =
+    fun (by: ByStr20) =>
+    fun (to: ByStr20) =>
+    fun (num : Uint128) =>
+        {_eventname: "Approved";
+        from: by;
+        approved_user: to;
+        numTokens: num}
+
+let make_error_event =
+    fun (calledFrom : String) =>
+    fun (err : String) =>
+        {_eventname: "Error";
+        raised_at: calledFrom;
+        error: err
+        }
+
+
 let min_int =
   fun (a : Uint128) => fun (b : Uint128) =>
   let alt = builtin lt a b in
@@ -94,20 +121,21 @@ transition Transfer (to : ByStr20, tokens : Uint128)
       | None =>
         balances[to] := tokens
       end;
-      msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; transferred : tokens };
-      msgs = one_msg msg;
-      send msgs
+
+      e = make_transfer_success_event _sender to tokens;
+      event e
     | False =>
       (* balance not sufficient. *)
-      msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; transferred : Uint128 0 };
-      msgs = one_msg msg;
-      send msgs
+      e = let error_msg = "Insufficient Balance" in let current_location = "Transfer" in
+            make_error_event current_location error_msg;
+      event e
     end
   | None =>
     (* no balance record, can't transfer *)
-    msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; transferred : Uint128 0 };
-    msgs = one_msg msg;
-    send msgs
+
+      e = let error_msg = "Insufficient Balance" in let current_location = "Transfer" in
+            make_error_event current_location error_msg;
+      event e
   end
 end
 
@@ -137,25 +165,30 @@ transition TransferFrom (from : ByStr20, to : ByStr20, tokens : Uint128)
         end;
         (* reduce "allowed" by "tokens" *)
         new_allowed = builtin sub numTokens tokensToBeTransferred;
-        allowed[from][_sender] := new_allowed
+        allowed[from][_sender] := new_allowed;
 
         (* Emit event to indicate that transfer is successful *)
-
+        e = make_transfer_success_event from to tokensToBeTransferred;
+        event e
       | None =>
-          msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; message : m_disallowed };
-          msgs = one_msg msg;
-          send msgs
+          e = let error_msg = "Not allowed" in let current_location = "TransferFrom" in 
+                make_error_event current_location error_msg;
+          event e
       end
 
   | None =>
-      msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; message : m_disallowed };
-      msgs = one_msg msg;
-      send msgs
+  
+      e = let error_msg = "Not allowed" in let current_location = "TransferFrom" in 
+                make_error_event current_location error_msg;
+      event e
   end
+
 end
 
 transition Approve (spender : ByStr20, tokens : Uint128)
-  allowed[_sender][spender] := tokens
+  allowed[_sender][spender] := tokens;
+  e = make_approve_success_event _sender spender tokens;
+  event e
 end
 
 transition Allowance (tokenOwner : ByStr20, spender : ByStr20)

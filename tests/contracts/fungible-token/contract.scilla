@@ -146,30 +146,42 @@ transition TransferFrom (from : ByStr20, to : ByStr20, tokens : Uint128)
   | Some balanceAvailable =>
       (* Check if _sender has been authorized by "from" *)
       numTokensTransferable <- allowed[from][_sender];
+      
       match numTokensTransferable with
       | Some numTokens =>
         (* We can only transfer the minimum of available or authorized tokens *)
         tokensToBeTransferred = let val = min_int balanceAvailable numTokens in 
                                 min_int val tokens;
-        newBalanceFrom = builtin sub balanceAvailable tokensToBeTransferred;
-        balances[from] := newBalanceFrom;
+        not_allowed = builtin lt tokensToBeTransferred tokens;
+        match not_allowed with
+        | True =>
+            (* Operation not allowed *)
+            e = let error_msg = "Not allowed" in let current_location = "TransferFrom" in 
+                make_error_event current_location error_msg;
+            event e
+        | False =>
+            (* Operation allowed *)
+            newBalanceFrom = builtin sub balanceAvailable tokensToBeTransferred;
+            balances[from] := newBalanceFrom;
 
-        (* Calculate recepient's new balance *)
-        getRecipientBal <- balances[to];
-        match getRecipientBal with
-        | Some bal =>
-            newRecipientBalance = builtin add bal tokensToBeTransferred;
-            balances[to] := newRecipientBalance
-        | None =>
-            balances[to] := tokensToBeTransferred
-        end;
-        (* reduce "allowed" by "tokens" *)
-        new_allowed = builtin sub numTokens tokensToBeTransferred;
-        allowed[from][_sender] := new_allowed;
+            (* Calculate recepient's new balance *)
+            getRecipientBal <- balances[to];
+            match getRecipientBal with
+            | Some bal =>
+                newRecipientBalance = builtin add bal tokensToBeTransferred;
+                balances[to] := newRecipientBalance
+            | None =>
+                balances[to] := tokensToBeTransferred
+            end;
+            (* reduce "allowed" by "tokens" *)
+            new_allowed = builtin sub numTokens tokensToBeTransferred;
+            allowed[from][_sender] := new_allowed;
 
-        (* Emit event to indicate that transfer is successful *)
-        e = make_transfer_success_event from to tokensToBeTransferred;
-        event e
+            (* Emit event to indicate that transfer is successful *)
+            e = make_transfer_success_event from to tokensToBeTransferred;
+            event e
+        end
+        
       | None =>
           e = let error_msg = "Not allowed" in let current_location = "TransferFrom" in 
                 make_error_event current_location error_msg;

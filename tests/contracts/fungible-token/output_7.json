@@ -1,5 +1,5 @@
 {
-  "gas_remaining": "6807",
+  "gas_remaining": "6927",
   "message": null,
   "states": [
     { "vname": "_balance", "type": "Uint128", "value": "0" },
@@ -12,7 +12,7 @@
           "val": [
             {
               "key": "0x64345678901234567890123456789012345678cd",
-              "val": "0"
+              "val": "20"
             },
             {
               "key": "0x54345678901234567890123456789012345678cd",
@@ -26,10 +26,10 @@
       "vname": "balances",
       "type": "Map (ByStr20) (Uint128)",
       "value": [
-        { "key": "0x78345678901234567890123456789012345678cd", "val": "600" },
+        { "key": "0x78345678901234567890123456789012345678cd", "val": "580" },
         {
           "key": "0x1234567890123456789012345678901234567890",
-          "val": "9380"
+          "val": "9400"
         },
         { "key": "0x44345678901234567890123456789012345678cd", "val": "20" }
       ]
@@ -37,19 +37,10 @@
   ],
   "events": [
     {
-      "_eventname": "Transfer Successful",
+      "_eventname": "Error",
       "params": [
-        {
-          "vname": "from",
-          "type": "ByStr20",
-          "value": "0x1234567890123456789012345678901234567890"
-        },
-        {
-          "vname": "to",
-          "type": "ByStr20",
-          "value": "0x78345678901234567890123456789012345678cd"
-        },
-        { "vname": "num", "type": "Uint128", "value": "20" }
+        { "vname": "raised_at", "type": "String", "value": "TransferFrom" },
+        { "vname": "error", "type": "String", "value": "Not allowed" }
       ]
     }
   ]

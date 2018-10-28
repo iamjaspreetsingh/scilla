@@ -51,6 +51,8 @@ contract FungibleToken
 field balances : Map ByStr20 Uint128 =
   let m = Emp ByStr20 Uint128 in
     builtin put m owner total_tokens
+
+(* Stores a mapping of tokenOwner to approved addresses along with the number of tokens approved *)
 field allowed : Map ByStr20 (Map ByStr20 Uint128) = Emp ByStr20 (Map ByStr20 Uint128)
 
 transition BalanceOf (tokenOwner : ByStr20)
@@ -75,8 +77,7 @@ transition TotalSupply ()
 end
 
 transition Transfer (to : ByStr20, tokens : Uint128)
-  bl <- balances;
-  bal = builtin get bl _sender;
+  bal <- balances[_sender];
   match bal with
   | Some b =>
     can_do = le_int tokens b;
@@ -84,16 +85,14 @@ transition Transfer (to : ByStr20, tokens : Uint128)
     | True =>
       (* subtract tokens from _sender and add it to to *)
       new_sender_bal = builtin sub b tokens;
-      new_balances = builtin put bl _sender new_sender_bal;
-      to_bal = builtin get new_balances to;
+      balances[_sender] := new_sender_bal;
+      to_bal <- balances[to];
       match to_bal with
       | Some x =>
         new_to_bal = builtin add x tokens;
-        new_balances2 = builtin put new_balances to new_to_bal;
-        balances := new_balances2
+        balances[to] := new_to_bal
       | None =>
-        new_balances3 = builtin put new_balances to tokens;
-        balances := new_balances3
+        balances[to] := tokens
       end;
       msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; transferred : tokens };
       msgs = one_msg msg;
@@ -113,78 +112,50 @@ transition Transfer (to : ByStr20, tokens : Uint128)
 end
 
 transition TransferFrom (from : ByStr20, to : ByStr20, tokens : Uint128)
-  bl <- balances;
-  al <- allowed;
   m_disallowed = "Transfer not allowed";
-  bal = builtin get bl from;
-  (* Check if _sender has been authorized by "from" *)
-  allowed_from = builtin get al from;
-  match allowed_from with
-  | Some m =>
-    (* How many tokens has _sender been authorized to transfer, by "from" *)
-    sender_allowed_from = builtin get m _sender;
-    all = Pair { (Option Uint128) (Option Uint128)} bal sender_allowed_from;
-    match all with
-    | Pair (Some a) (Some b) =>
-      (* We can only transfer the minimum of available or authorized tokens *)
-      t = min_int a b;
-      can_do = le_int tokens t;
-      match can_do with
-      | True =>
-        (* tokens is what we should subtract from "from" and add to "to" *)
-        new_from_bal = builtin sub a tokens;
-        balances_1 = builtin put bl from new_from_bal;
-        balances := balances_1;
-        to_bal = builtin get balances_1 to;
-        match to_bal with
-        | Some tb =>
-          to_bal_new = builtin add tb tokens;
-          balances_2 = builtin put balances_1 to to_bal_new;
-          balances := balances_2;
-          send no_msg
+  getBalanceFrom <- balances[from];
+  match getBalanceFrom with
+  | Some balanceAvailable =>
+      (* Check if _sender has been authorized by "from" *)
+      numTokensTransferable <- allowed[from][_sender];
+      match numTokensTransferable with
+      | Some numTokens =>
+        (* We can only transfer the minimum of available or authorized tokens *)
+        tokensToBeTransferred = let val = min_int balanceAvailable numTokens in 
+                                min_int val tokens;
+        newBalanceFrom = builtin sub balanceAvailable tokensToBeTransferred;
+        balances[from] := newBalanceFrom;
+
+        (* Calculate recepient's new balance *)
+        getRecipientBal <- balances[to];
+        match getRecipientBal with
+        | Some bal =>
+            newRecipientBalance = builtin add bal tokensToBeTransferred;
+            balances[to] := newRecipientBalance
         | None =>
-          (* "to" has no balance. So just set it to tokens *)
-          balances_3 = builtin put balances_1 to tokens;
-          balances := balances_3;
-          send no_msg
+            balances[to] := tokensToBeTransferred
         end;
         (* reduce "allowed" by "tokens" *)
-        new_allowed = builtin sub b tokens;
-        new_m = builtin put m _sender new_allowed;
-        new_allowed = builtin put al from new_m;
-        allowed := new_allowed
-      | False =>
-        msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; message : m_disallowed };
-        msgs = one_msg msg;
-        send msgs
+        new_allowed = builtin sub numTokens tokensToBeTransferred;
+        allowed[from][_sender] := new_allowed
+
+        (* Emit event to indicate that transfer is successful *)
+
+      | None =>
+          msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; message : m_disallowed };
+          msgs = one_msg msg;
+          send msgs
       end
-    | _ =>
+
+  | None =>
       msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; message : m_disallowed };
       msgs = one_msg msg;
       send msgs
-    end
-  | None =>
-    msg = { _tag : "Main"; _recipient : _sender; _amount : Uint128 0; message : m_disallowed };
-    msgs = one_msg msg;
-    send msgs
   end
 end
 
 transition Approve (spender : ByStr20, tokens : Uint128)
-  al <- allowed;
-  sender_map = builtin get al _sender;
-  match sender_map with
-  | Some m =>
-    allowed_to_spender = builtin put m spender tokens;
-    allowed_new = builtin put al _sender allowed_to_spender;
-    allowed := allowed_new;
-    send no_msg
-  | None =>
-    allowed_to_spender = let m = Emp ByStr20 Uint128 in builtin put m spender tokens;
-    allowed_new = builtin put al _sender allowed_to_spender;
-    allowed := allowed_new;
-    send no_msg
-  end
+  allowed[_sender][spender] := tokens
 end
 
 transition Allowance (tokenOwner : ByStr20, spender : ByStr20)

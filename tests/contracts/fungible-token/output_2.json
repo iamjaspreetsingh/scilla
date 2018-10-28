@@ -1,5 +1,5 @@
 {
-  "gas_remaining": "7114",
+  "gas_remaining": "7215",
   "message": {
     "_tag": "Main",
     "_amount": "0",
@@ -12,6 +12,11 @@
   "states": [
     { "vname": "_balance", "type": "Uint128", "value": "0" },
     {
+      "vname": "allowed",
+      "type": "Map (ByStr20) (Map (ByStr20) (Uint128))",
+      "value": []
+    },
+    {
       "vname": "balances",
       "type": "Map (ByStr20) (Uint128)",
       "value": [
@@ -21,11 +26,6 @@
         },
         { "key": "0x44345678901234567890123456789012345678cd", "val": "20" }
       ]
-    },
-    {
-      "vname": "allowed",
-      "type": "Map (ByStr20) (Map (ByStr20) (Uint128))",
-      "value": []
     }
   ],
   "events": []
